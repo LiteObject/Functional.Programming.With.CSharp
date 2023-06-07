@@ -4,7 +4,7 @@
 Functional programming is a programming paradigm that emphasizes the use of pure functions and immutable data. While C# is primarily known as an object-oriented programming language, it also provides powerful features and constructs that enable functional programming. In this blog post, we will explore functional programming concepts and demonstrate how to apply them using C# examples. By understanding functional programming principles, you can write cleaner, more concise, and more maintainable code.
 
 ## 1. Pure Functions:
-One of the core concepts in functional programming is the use of pure functions. A pure function always produces the same output for a given input and has no side effects. Let's consider an example:
+One of the core concepts in functional programming is the use of pure functions. __A pure function always produces the same output for a given input and has no side effects__. Let's consider an example:
 
 ```csharp
 int Multiply(int a, int b)
@@ -15,7 +15,7 @@ int Multiply(int a, int b)
 The `Multiply` function takes two integers as input and returns their product. It doesn't modify any external state and will always produce the same result for the same inputs. This property makes pure functions predictable and easier to reason about.
 
 ## 2. Immutability:
-In functional programming, immutability is highly valued. Immutable objects cannot be changed once created, which leads to fewer bugs and makes code easier to understand. C# provides the readonly modifier to enforce immutability:
+In functional programming, immutability is highly valued. __Immutable objects cannot be changed once created__, which leads to fewer bugs and makes code easier to understand. C# provides the readonly modifier to enforce immutability:
 
 ```csharp
 public class Person
@@ -32,7 +32,7 @@ public class Person
 In the example above, the Name property is marked as readonly, ensuring that it can only be assigned a value during object initialization. Once set, it cannot be modified, promoting immutability.
 
 ## 3. Higher-Order Functions:
-Functional programming encourages the use of higher-order functions, which are functions that can take other functions as arguments or return functions as results. C# provides support for higher-order functions through delegates, lambda expressions, and functional interfaces:
+Functional programming encourages the use of higher-order functions, which are __functions that can take other functions as arguments or return functions as results__. C# provides support for higher-order functions through delegates, lambda expressions, and functional interfaces:
 
 ```csharp
 List<int> numbers = new List<int> { 1, 2, 3, 4, 5 };
