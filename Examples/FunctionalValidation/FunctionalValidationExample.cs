@@ -5,8 +5,10 @@ namespace Functional.Programming.With.CSharp.Examples.FunctionalValidation;
 
 public static class FunctionalValidationExample
 {
+    // Validation rule returns a success flag plus an optional error message.
     public delegate (bool isValid, string? error) ValidationRule<in T>(T input);
 
+    // Run each rule and gather all failures into a single result tuple.
     public static ValidationRule<T> Combine<T>(params ValidationRule<T>[] rules) => input =>
     {
         var errors = rules
@@ -34,6 +36,7 @@ public static class FunctionalValidationExample
 
     public static void Run()
     {
+        // Compose reusable rules to validate sample inputs.
         var validator = Combine(NotEmpty, MinLength(3));
 
         var samples = new[] { "", "ab", "abcd" };

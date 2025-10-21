@@ -6,6 +6,7 @@ namespace Functional.Programming.With.CSharp.Examples.LazySequences;
 
 public static class LazySequencesExample
 {
+    // Yield an unbounded arithmetic progression starting at the given value.
     public static IEnumerable<int> InfiniteSequence(int start = 0)
     {
         var current = start;
@@ -15,6 +16,7 @@ public static class LazySequencesExample
         }
     }
 
+    // Generate Fibonacci numbers lazily so callers can Take as many as they need.
     public static IEnumerable<int> FibonacciSequence()
     {
         var current = 0;
@@ -47,6 +49,7 @@ public static class LazySequencesExample
 
     public static void Run()
     {
+        // Lazy pipelines only evaluate the numbers requested by Take.
         var firstTenPrimes = InfiniteSequence(2)
             .Where(IsPrime)
             .Take(10)

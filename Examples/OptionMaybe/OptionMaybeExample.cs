@@ -2,6 +2,7 @@ using System;
 
 namespace Functional.Programming.With.CSharp.Examples.OptionMaybe;
 
+// Lightweight Option type to model presence or absence without nulls.
 public readonly struct Option<T>
 {
     private readonly T _value;
@@ -17,9 +18,11 @@ public readonly struct Option<T>
 
     public static Option<T> None() => new(default!, false);
 
+    // Pattern match to project either the value or an alternative.
     public TResult Match<TResult>(Func<T, TResult> some, Func<TResult> none) =>
         HasValue ? some(_value) : none();
 
+    // Transform only when a value exists, otherwise propagate None.
     public Option<TResult> Map<TResult>(Func<T, TResult> mapper) =>
         HasValue ? Option<TResult>.Some(mapper(_value)) : Option<TResult>.None();
 }

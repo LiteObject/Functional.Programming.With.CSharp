@@ -2,6 +2,7 @@ using System;
 
 namespace Functional.Programming.With.CSharp.Examples.RailwayOriented;
 
+// Simple two-track result type used for railway oriented programming.
 public readonly struct Result<TSuccess, TError>
 {
     private readonly TSuccess _success;
@@ -19,6 +20,7 @@ public readonly struct Result<TSuccess, TError>
 
     public static Result<TSuccess, TError> Failure(TError error) => new(default!, error, false);
 
+    // Chain operations: continue only when the previous step succeeded.
     public Result<TNewSuccess, TError> Bind<TNewSuccess>(Func<TSuccess, Result<TNewSuccess, TError>> next) =>
         IsSuccess ? next(_success) : Result<TNewSuccess, TError>.Failure(_error);
 
@@ -35,6 +37,7 @@ public static class RailwayOrientedExample
 
     public static void Run()
     {
+        // Happy path flows through both divisions on the success track.
         var goodResult = Result<int, string>.Success(100)
             .Bind(x => Divide(x, 2))
             .Bind(x => Divide(x, 5))
@@ -44,6 +47,7 @@ public static class RailwayOrientedExample
 
         Console.WriteLine(goodResult);
 
+        // Error path short-circuits when division by zero is attempted.
         var badResult = Result<int, string>.Success(10)
             .Bind(x => Divide(x, 0))
             .Match(

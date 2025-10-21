@@ -5,6 +5,7 @@ namespace Functional.Programming.With.CSharp.Examples.Memoization;
 
 public static class MemoizationExample
 {
+    // Wrap a function so results are cached per input value.
     public static Func<T, TResult> Memoize<T, TResult>(Func<T, TResult> func)
         where T : notnull
     {
@@ -22,6 +23,7 @@ public static class MemoizationExample
         };
     }
 
+    // Memoize the naive recursive Fibonacci to avoid exponential recomputation.
     private static readonly Func<int, long> MemoizedFibonacci = Memoize<int, long>(Fibonacci);
 
     private static long Fibonacci(int n) =>
