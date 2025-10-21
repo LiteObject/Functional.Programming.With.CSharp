@@ -209,6 +209,11 @@ var message = FindUser(123)
 
 ### 5. Composing Operations with Railway-Oriented Programming
 
+Railway-oriented programming (ROP) visualizes a workflow as two parallel tracks: a success track and an error track. Each operation receives a value from the success track and returns either another success value (stay on track) or an error (switch to the failure track). Once the flow moves to the failure track it skips any remaining steps and carries the first error to the end. This approach keeps the happy path linear and keeps error handling explicit without piles of nested `if` statements or try/catch blocks.
+
+#### The `Result` Type and `Bind`
+At the heart of ROP is a `Result<TSuccess, TError>` type with a `Bind` method. `Bind` only executes the next function when the current result represents success; otherwise it propagates the existing error. That behavior gives you automatic short-circuiting and keeps business logic focused on successful operations.
+
 #### Chaining Operations That Can Fail
 ```csharp
 public Result<Order, string> ProcessOrder(string userEmail, string productId, int quantity)
@@ -220,6 +225,8 @@ public Result<Order, string> ProcessOrder(string userEmail, string productId, in
 				.Bind(stock => CreateOrder(user, product, quantity))));
 }
 ```
+
+The pipeline reads top to bottom just like a specification: validate the email, load the user, fetch the product, check stock, create the order. If any step fails the chain jumps to the failure track and the remaining functions are skipped.
 
 #### Combining Validations
 ```csharp
@@ -247,6 +254,18 @@ var validateUser = Validator.All<User>(
 	ValidateName
 );
 ```
+
+#### When to Reach for ROP
+- Workflows with several sequential operations that may fail.
+- Validation pipelines where the first failure should stop processing.
+- Scenarios where you want to keep the success path uncluttered by error checks.
+
+#### When Not to Use It
+- Tiny operations with no branching or only one possible failure mode.
+- Situations where you must collect all errors instead of stopping at the first failure.
+- Ultra low-level code where wrapping everything in result objects would add too much overhead.
+
+ROP is most effective when combined with honest function signatures: returning `Result` and `Option` types makes it obvious that a function participates in a railway flow and makes the happy path comfortable to read.
 
 ---
 
