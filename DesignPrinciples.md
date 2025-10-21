@@ -1,30 +1,270 @@
-# Notes on Functional Programming Approach in C#
+# Design Principles: Functional Programming in C#
 
-## Introduction
-- **Predictability:** A core goal is to make code more predictable. The easiest way to do that is to ensure that for the same input, a function always returns the same output.
-- **No Side Effects:** Functions should not modify any state outside their own scope (e.g., no modifying global variables, no writing to disk or the console).
-- **Self-documenting Signatures:** A method's signature should tell you everything you need to know about what it does. If it takes a `string` and returns an `int`, it should *only* be doing a conversion. If it needs to do more, that should be reflected in the types it uses.
+## Core Philosophy
+### Predictability Over Cleverness
+The primary goal is writing code that behaves predictably. When you call a function with specific inputs, you should know exactly what will happen—no surprises, no hidden state changes, no mysterious side effects.
 
-## Refactoring to an Immutable Architecture
-- **Start with `readonly`:** The simplest step is to make class properties `readonly` wherever possible. This prevents objects from being changed after they are created.
-- **"With" methods:** Instead of modifying an object, create a method that returns a *new* object with the updated values. For example, instead of `person.SetName("new name")`, use `var newPerson = person.WithName("new name")`. C# records (`with` keyword) make this much easier.
-- **Immutable Collections:** Use `System.Collections.Immutable` collections (`ImmutableList<T>`, `ImmutableDictionary<TKey, TValue>`, etc.). When you "change" them, you get a new collection back, leaving the original untouched. This is great for concurrency.
+### Honest Function Signatures
+A function's signature should be a contract that tells the complete truth:
+- If it returns `int`, it returns an integer—not sometimes null, not sometimes throws.
+- If it can fail, that should be in the return type (`Result<T, TError>`).
+- If a value might be missing, use `Option<T>` instead of null.
 
-## Refactoring Away from Exceptions
-- **Exceptions are for exceptional situations:** Don't use exceptions for predictable error conditions, like user input validation. Exceptions are side effects that make code harder to follow.
-- **Return a result type:** Instead of throwing an exception, have your function return a type that represents both success and failure. A common pattern is a `Result<TSuccess, TError>` object. The caller is then forced to handle both cases. This is the core idea of Railway Oriented Programming.
+### Immutability by Default
+Treat mutability as a last resort optimization, not the default. Immutable code is thread-safe without locks, easier to reason about, and impossible to corrupt through aliasing.
 
-## Avoiding Primitive Obsession
-- **What it is:** "Primitive Obsession" is using primitive types (like `string`, `int`, `decimal`) to represent domain concepts. For example, using a `string` for an email address or a `decimal` for money.
-- **Why it's bad:** You can't enforce validation at the type level. Any string can be passed as an email, even if it's not a valid one.
-- **The fix:** Create simple, immutable value-object types. For example, an `EmailAddress` class that validates the string in its constructor. This way, if you have an `EmailAddress` object, you *know* it's valid. This makes your method signatures much more honest.
+---
+## Refactoring Strategies
 
-## Avoiding Null with the Maybe/Option Type
-- **`null` is the "billion-dollar mistake":** `NullReferenceException` is a common bug. The problem with `null` is that you have to remember to check for it.
-- **The `Maybe<T>` (or `Option<T>`) type:** This is a type that explicitly represents the possibility of a missing value. It has two states: `Some(T)` (a value is present) or `None` (no value).
-- **How it helps:** When a function returns a `Maybe<T>`, the caller is forced to handle both the `Some` and `None` cases, making it impossible to forget a "null check". It makes the possibility of an absent value explicit in the function's signature.
+### 1. Making Code Immutable
+#### Start Small with `readonly`
+```csharp
+// Mutable - can be changed after creation
+public class Account
+{
+	public decimal Balance { get; set; }
+	public string Owner { get; set; }
+}
 
-## Handling Failure and Input Errors in a Functional Way
-- **Combine `Maybe` and `Result`:** Use `Maybe<T>` for values that are optional, and `Result<TSuccess, TError>` for operations that can fail.
-- **Validation as a function:** Create small, reusable validation functions. For example, `IsNotEmpty(string)`, `IsValidEmail(string)`.
-- **Chain or compose validations:** You can chain these validation functions together. If any one of them fails, the chain is short-circuited and returns a failure result. This is another application of Railway Oriented Programming. This keeps your validation logic clean and separate from your business logic.
+// Immutable - properties cannot change
+public class Account
+{
+	public decimal Balance { get; }
+	public string Owner { get; }
+
+	public Account(decimal balance, string owner)
+	{
+		Balance = balance;
+		Owner = owner;
+	}
+}
+```
+
+#### Use "With" Methods for Updates
+```csharp
+public class Account
+{
+	public decimal Balance { get; }
+	public string Owner { get; }
+
+	public Account WithBalance(decimal newBalance) =>
+		new Account(newBalance, Owner);
+
+	public Account Deposit(decimal amount) =>
+		WithBalance(Balance + amount);
+}
+```
+
+#### Leverage C# Records
+```csharp
+public record Account(decimal Balance, string Owner)
+{
+	public Account Deposit(decimal amount) =>
+		this with { Balance = Balance + amount };
+}
+```
+
+#### Immutable Collections
+```csharp
+// Mutable collection - can be modified by anyone with a reference
+List<Transaction> transactions = new();
+
+// Immutable - operations return new collections
+ImmutableList<Transaction> transactions = ImmutableList<Transaction>.Empty;
+transactions = transactions.Add(newTransaction); // Returns new list
+```
+
+---
+
+### 2. Replacing Exceptions with Result Types
+
+#### The Problem with Exceptions
+```csharp
+// Exceptions hide failure modes
+public int Divide(int numerator, int denominator)
+{
+	if (denominator == 0)
+		throw new DivideByZeroException();
+	return numerator / denominator;
+}
+
+var result = Divide(10, userInput); // Runtime explosion possible
+```
+
+#### The Result Pattern
+```csharp
+public Result<int, string> Divide(int numerator, int denominator)
+{
+	if (denominator == 0)
+		return Result<int, string>.Failure("Cannot divide by zero");
+
+	return Result<int, string>.Success(numerator / denominator);
+}
+
+var result = Divide(10, userInput)
+	.Match(
+		success: value => $"Result: {value}",
+		failure: error => $"Error: {error}"
+	);
+```
+
+#### When to Use Exceptions vs Results
+- Use exceptions for programming errors (null arguments, index out of range).
+- Use results for expected failures (validation, parsing, business rules).
+
+---
+
+### 3. Eliminating Primitive Obsession with Value Objects
+
+#### The Problem
+```csharp
+public class User
+{
+	public string Email { get; set; }
+	public decimal AccountBalance { get; set; }
+	public int Age { get; set; }
+}
+
+public void SendEmail(string email, string subject, string body)
+{
+	// Is 'email' valid? Hard to know without repeating validation.
+}
+```
+
+#### The Solution: Value Objects
+```csharp
+public record EmailAddress
+{
+	public string Value { get; }
+
+	private EmailAddress(string value) => Value = value;
+
+	public static Result<EmailAddress, string> Create(string input)
+	{
+		if (string.IsNullOrWhiteSpace(input))
+			return Result<EmailAddress, string>.Failure("Email cannot be empty");
+
+		if (!input.Contains("@"))
+			return Result<EmailAddress, string>.Failure("Invalid email format");
+
+		return Result<EmailAddress, string>.Success(new EmailAddress(input));
+	}
+}
+
+public record Age
+{
+	public int Value { get; }
+
+	private Age(int value) => Value = value;
+
+	public static Result<Age, string> Create(int input)
+	{
+		if (input < 0 || input > 150)
+			return Result<Age, string>.Failure("Age must be between 0 and 150");
+
+		return Result<Age, string>.Success(new Age(input));
+	}
+}
+
+public void SendEmail(EmailAddress to, Subject subject, Body body)
+{
+	// 'to' is guaranteed to be valid.
+}
+```
+
+---
+
+### 4. Handling Missing Values with Option/Maybe
+
+#### The Null Problem
+```csharp
+public User FindUser(int id)
+{
+	return database.Users.FirstOrDefault(u => u.Id == id); // Might return null
+}
+
+var user = FindUser(123);
+Console.WriteLine(user.Name); // Possible null reference
+```
+
+#### The Option Solution
+```csharp
+public Option<User> FindUser(int id)
+{
+	var user = database.Users.FirstOrDefault(u => u.Id == id);
+	return user != null
+		? Option<User>.Some(user)
+		: Option<User>.None();
+}
+
+var message = FindUser(123)
+	.Map(u => u.Name)
+	.Match(
+		some: name => $"Hello, {name}!",
+		none: () => "User not found"
+	);
+```
+
+---
+
+### 5. Composing Operations with Railway-Oriented Programming
+
+#### Chaining Operations That Can Fail
+```csharp
+public Result<Order, string> ProcessOrder(string userEmail, string productId, int quantity)
+{
+	return EmailAddress.Create(userEmail)
+		.Bind(email => FindUser(email))
+		.Bind(user => FindProduct(productId)
+			.Bind(product => CheckStock(product, quantity)
+				.Bind(stock => CreateOrder(user, product, quantity))));
+}
+```
+
+#### Combining Validations
+```csharp
+public static class Validator
+{
+	public static Func<T, Result<T, string>> All<T>(params Func<T, Result<T, string>>[] validators)
+	{
+		return input =>
+		{
+			foreach (var validator in validators)
+			{
+				var result = validator(input);
+				if (!result.IsSuccess)
+					return result;
+			}
+
+			return Result<T, string>.Success(input);
+		};
+	}
+}
+
+var validateUser = Validator.All<User>(
+	ValidateAge,
+	ValidateEmail,
+	ValidateName
+);
+```
+
+---
+
+## Best Practices Summary
+
+### Do
+- Make illegal states unrepresentable through types.
+- Use immutable data structures by default.
+- Return explicit error types instead of throwing exceptions.
+- Validate data at system boundaries.
+- Compose small, pure functions into larger operations.
+
+### Do Not
+- Use null to represent missing values (use `Option<T>`).
+- Throw exceptions for expected failures (use `Result<T, TError>`).
+- Mutate state unless absolutely necessary for performance.
+- Use primitive types for domain concepts (create value objects).
+- Hide side effects in functions that appear pure.
+
+### Remember
+The goal is to be practical. Use these patterns where they make code clearer, safer, and more maintainable. C# is a multi-paradigm language—choose the approach that best fits the problem.
